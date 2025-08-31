@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Specul.ai Tutor Demo</title>
+<title>Specul.ai French Tutor</title>
 <meta name="robots" content="noindex" />
 <style>
   :root{--bg:#f7f8fb;--card:#fff;--ink:#111;--muted:#6b7280;--primary:#2563eb}
-  *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:system-ui,Segoe UI,Roboto,Apple Color Emoji,Noto Color Emoji,sans-serif;color:var(--ink)}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:system-ui,sans-serif;color:var(--ink)}
   .wrap{max-width:780px;margin:32px auto;padding:0 16px}
   .chat{background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.06);overflow:hidden}
   .head{padding:16px 20px;border-bottom:1px solid #eef0f3;font-weight:600}
@@ -17,33 +17,30 @@
   .msgs{padding:20px;display:flex;flex-direction:column;gap:12px;max-height:60vh;overflow:auto}
   .row{display:flex;gap:10px;align-items:flex-start}
   .row.you{justify-content:flex-start}.row.me{justify-content:flex-end}
-  .bubble{max-width:74%;padding:12px 14px;border-radius:14px;line-height:1.35;word-wrap:break-word}
+  .bubble{max-width:74%;padding:12px 14px;border-radius:14px;line-height:1.35}
   .you .bubble{background:#eef2ff;color:#1f2937;border-top-left-radius:6px}
   .me .bubble{background:#e0ecff;color:#0b3b8d;border-top-right-radius:6px}
-  .avatar{width:28px;height:28px;border-radius:50%;background:#e5e7eb;flex:0 0 28px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#555}
+  .avatar{width:28px;height:28px;border-radius:50%;background:#e5e7eb;flex:0 0 28px;display:flex;align-items:center;justify-content:center;font-size:12px}
   .foot{display:flex;gap:10px;padding:14px;border-top:1px solid #eef0f3;background:#fafafa}
-  .in{flex:1;padding:12px 14px;border:1px solid #e5e7eb;border-radius:12px;outline:none}
+  .in{flex:1;padding:12px 14px;border:1px solid #e5e7eb;border-radius:12px}
   .btn{padding:12px 16px;background:var(--primary);color:#fff;border:0;border-radius:12px;font-weight:600;cursor:pointer}
   footer{margin-top:16px;font-size:12px;color:#6b7280;text-align:center}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="chat" role="application" aria-label="Specul.ai Tutor demo">
-    <div class="head">Specul.ai Tutor — 한국어/영어/프랑스어 지원 (ElevenLabs TTS)</div>
-
+  <div class="chat">
+    <div class="head">Specul.ai Tutor — French AI</div>
     <div class="toolbar">
-      <label for="lang" style="font-size:14px;color:#374151">입력 언어</label>
+      <label for="lang">입력 언어</label>
       <select id="lang" class="sel">
         <option value="ko-KR" selected>한국어</option>
         <option value="en-US">English</option>
         <option value="fr-FR">Français</option>
       </select>
-      <button id="micBtn" type="button" class="iconbtn" title="음성 입력 시작/중지">🎤 Mic</button>
+      <button id="micBtn" type="button" class="iconbtn">🎤 Mic</button>
     </div>
-
     <div id="msgs" class="msgs"></div>
-
     <form class="foot" onsubmit="sendMessage(event)">
       <input id="input" class="in" placeholder="메시지를 입력하거나 마이크 버튼을 누르세요…" autocomplete="off">
       <button class="btn" type="submit">Send</button>
@@ -53,110 +50,71 @@
 </div>
 
 <script>
-const API_BASE = "https://speculai-demo.vercel.app"; // Vercel API 도메인
+const API_BASE = "https://speculai-demo.vercel.app"; // Vercel API
 
-// ---------- UI ----------
 function el(t,c,h){const e=document.createElement(t);if(c)e.className=c;if(h)e.innerHTML=h;return e;}
 function appendMessage(role,text){
   const row=el('div','row '+(role==='me'?'me':'you'));
-  if(role==='you'){ row.appendChild(el('div','avatar','AI')); }
+  if(role==='you') row.appendChild(el('div','avatar','AI'));
   const b=el('div','bubble'); b.textContent=text; row.appendChild(b);
   const m=document.getElementById('msgs'); m.appendChild(row); m.scrollTop=m.scrollHeight;
 }
-function appendTyping(){
-  window._typing=el('div','row you');
-  _typing.appendChild(el('div','avatar','AI'));
-  _typing.appendChild(el('div','bubble','…typing'));
-  const m=document.getElementById('msgs'); m.appendChild(_typing); m.scrollTop=m.scrollHeight;
-}
+function appendTyping(){window._typing=el('div','row you');_typing.appendChild(el('div','avatar','AI'));_typing.appendChild(el('div','bubble','…typing'));document.getElementById('msgs').appendChild(_typing);}
 function removeTyping(){ if(window._typing){ _typing.remove(); window._typing=null; } }
 
-// ---------- 텍스트 전처리 ----------
-function cleanText(text){
-  return text
-    .replace(/\*\*/g,'')
-    .replace(/`{1,3}[^`]*`{1,3}/g,'')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g,'$1')
-    .replace(/[*_~>#-]{1,}/g,' ')
-    .replace(/\s{2,}/g,' ')
-    .trim();
-}
-function detectLangFromText(text){
-  if (/[ㄱ-ㅎ가-힣]/.test(text)) return 'ko-KR';
-  if (/^[a-zA-Z0-9\s\p{P}]+$/u.test(text)) return 'en-US';
-  return 'fr-FR';
+// --- 언어 판별 ---
+function hasHangul(s){return /[가-힣]/.test(s);}
+function looksFrench(s){return /[àâçéèêëîïôûùüÿœæç]|bonjour|merci|franç|ça|comment/i.test(s);}
+function decideLang(token){if(hasHangul(token))return'ko-KR';if(looksFrench(token))return'fr-FR';if(/[A-Za-z]/.test(token))return'en-US';return null;}
+
+// --- 혼합 문장 분할 ---
+function splitMixedByLang(text){
+  const tokens=text.match(/([\uAC00-\uD7A3]+|[A-Za-zÀ-ÖØ-öø-ÿ'’\-]+|[0-9]+|[^\sA-Za-zÀ-ÖØ-öø-ÿ\uAC00-\uD7A3]+)/g)||[text];
+  const segs=[];let cur={lang:null,text:''};
+  for(const tk of tokens){const lang=decideLang(tk);
+    if(!lang){cur.text+=tk;continue;}
+    if(!cur.lang){cur.lang=lang;cur.text+=tk;continue;}
+    if(cur.lang===lang){cur.text+=tk;continue;}
+    segs.push(cur);cur={lang,text:tk};
+  } if(cur.text)segs.push(cur);
+  return segs.map(s=>({lang:s.lang,text:s.text.trim()})).filter(s=>s.text);
 }
 
-// ---------- ElevenLabs TTS ----------
+// --- 오디오 순차 재생 ---
+async function playAudioChain(b64s){if(!b64s.length)return;const a=new Audio(`data:audio/mpeg;base64,${b64s[0]}`);a.addEventListener('ended',()=>playAudioChain(b64s.slice(1)));try{await a.play();}catch{}}
+
+// --- ElevenLabs TTS 호출 ---
 async function playWithElevenLabs(text){
-  const cleaned = cleanText(text);
-  const lang = detectLangFromText(cleaned);
-  try{
-    const r = await fetch(`${API_BASE}/api/tts`, {
-      method: "POST",
-      headers: { "Content-Type":"application/json" },
-      body: JSON.stringify({ text: cleaned, lang })
-    });
-    const { audio } = await r.json();
-    if (!audio) return;
-    const src = `data:audio/mpeg;base64,${audio}`;
-    const a = new Audio(src);
-    a.play().catch(()=>{});
-  }catch(e){ console.warn("TTS error", e); }
+  const segs=splitMixedByLang(text);try{
+    const calls=segs.map(async s=>{
+      const r=await fetch(`${API_BASE}/api/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(s)});
+      const j=await r.json();return j&&j.audio?j.audio:null;});
+    const results=(await Promise.all(calls)).filter(Boolean);
+    if(results.length) await playAudioChain(results);
+  }catch(e){console.warn("TTS error",e);}
 }
 
-// ---------- STT (브라우저 음성 입력) ----------
-let recognition, recognizing=false;
-function initSTT(lang='ko-KR'){
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert("이 브라우저는 음성 인식을 지원하지 않습니다 (Chrome 권장)."); return null; }
-  const r = new SR();
-  r.lang = lang; r.interimResults=false; r.maxAlternatives=1;
-  r.onresult = (e)=>{ document.getElementById('input').value = e.results[0][0].transcript; };
-  r.onend = ()=>{ recognizing=false; updateMicBtn(); };
-  r.onerror = ()=>{ recognizing=false; updateMicBtn(); };
-  return r;
-}
-function toggleMic(){
-  const lang = (document.getElementById('lang')||{}).value || 'ko-KR';
-  if (!recognition) recognition = initSTT(lang);
-  if (!recognition) return;
-  if (recognizing){ recognition.stop(); recognizing=false; }
-  else { recognition.lang = lang; recognition.start(); recognizing=true; }
-  updateMicBtn();
-}
-function updateMicBtn(){
-  const btn = document.getElementById('micBtn');
-  if (btn) btn.textContent = recognizing ? '🛑 Stop' : '🎤 Mic';
-}
-document.getElementById('micBtn').onclick = toggleMic;
+// --- STT (HTTPS 필요) ---
+let recognition,recognizing=false;
+function initSTT(lang){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return null;const r=new SR();r.lang=lang;r.interimResults=false;r.maxAlternatives=1;r.onresult=e=>{document.getElementById('input').value=e.results[0][0].transcript;};r.onend=()=>{recognizing=false;updateMicBtn();};return r;}
+function toggleMic(){const lang=document.getElementById('lang').value;if(!recognition)recognition=initSTT(lang);if(!recognition)return;if(recognizing){recognition.stop();recognizing=false;}else{recognition.lang=lang;recognition.start();recognizing=true;}updateMicBtn();}
+function updateMicBtn(){document.getElementById('micBtn').textContent=recognizing?'🛑 Stop':'🎤 Mic';}
+document.getElementById('micBtn').onclick=toggleMic;
 
-// ---------- GPT 호출 ----------
+// --- GPT 호출 ---
 async function sendMessage(ev){
-  ev.preventDefault();
-  const i=document.getElementById('input');
-  const text=i.value.trim();
-  if(!text) return;
-  appendMessage('me', text);
-  i.value=''; i.focus(); appendTyping();
-
-  try {
-    const r = await fetch(`${API_BASE}/api/chat`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ message: text })
-    });
-    const data = await r.json();
-    removeTyping();
-    const reply = data.reply || '(응답이 없습니다)';
-    appendMessage('you', reply);
-    playWithElevenLabs(reply); // ElevenLabs TTS 실행
-  } catch(e) {
-    console.error(e);
-    removeTyping();
-    appendMessage('you','(Network error)');
-  }
+  ev.preventDefault();const i=document.getElementById('input');const text=i.value.trim();if(!text)return;
+  appendMessage('me',text);i.value='';appendTyping();
+  try{const r=await fetch(`${API_BASE}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
+    const data=await r.json();removeTyping();const reply=data.reply||'(응답이 없습니다)';appendMessage('you',reply);playWithElevenLabs(reply);
+  }catch(e){console.error(e);removeTyping();appendMessage('you','(Network error)');}
 }
+
+// --- 초기 웰컴 메시지 ---
+window.addEventListener('load',()=>{
+  const welcome="안녕하세요, Specul.ai 프랑스어 튜터입니다 🇫🇷 오늘은 어떤 주제나 표현을 배우고 싶으세요? (여행, 문화, 문법, 단어 등 자유롭게 말씀해 주세요)";
+  appendMessage('you',welcome);playWithElevenLabs(welcome);
+});
 </script>
 </body>
 </html>
