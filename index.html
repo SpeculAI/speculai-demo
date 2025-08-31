@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>French AI Tutor (Demo)</title>
+<title>Specul.ai Tutor Demo</title>
 <meta name="robots" content="noindex" />
 <style>
   :root{--bg:#f7f8fb;--card:#fff;--ink:#111;--muted:#6b7280;--primary:#2563eb}
@@ -26,11 +26,11 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="chat" role="application" aria-label="French AI Tutor demo">
-    <div class="head">French AI Tutor — Context Aware</div>
+  <div class="chat" role="application" aria-label="Specul.ai Tutor demo">
+    <div class="head">Specul.ai Tutor — 한국어/영어 지원</div>
     <div id="msgs" class="msgs"></div>
     <form class="foot" onsubmit="sendMessage(event)">
-      <input id="input" class="in" placeholder="Tapez votre message…" autocomplete="off">
+      <input id="input" class="in" placeholder="메시지를 입력하세요…" autocomplete="off">
       <button class="btn" type="submit">Send</button>
     </form>
   </div>
@@ -40,7 +40,7 @@
 <script>
 const API_BASE = "https://speculai-demo.vercel.app"; // Vercel API 엔드포인트
 
-// 메시지 표시 유틸
+// 메시지 표시
 function el(t,c,h){const e=document.createElement(t);if(c)e.className=c;if(h)e.innerHTML=h;return e;}
 function appendMessage(role,text){
   const row=el('div','row '+(role==='me'?'me':'you'));
@@ -56,9 +56,15 @@ function appendTyping(){
 }
 function removeTyping(){ if(window._typing){ _typing.remove(); window._typing=null; } }
 
-// TTS (브라우저 지원 시)
-function speak(text, lang='fr-FR') {
+// TTS
+function detectLang(text){
+  if (/[ㄱ-ㅎ가-힣]/.test(text)) return 'ko-KR';    // 한글
+  if (/^[a-zA-Z0-9\s\p{P}]+$/u.test(text)) return 'en-US'; // 영어
+  return 'fr-FR'; // 그 외는 프랑스어로 처리
+}
+function speak(text) {
   if (!('speechSynthesis' in window)) return;
+  const lang = detectLang(text);
   const u = new SpeechSynthesisUtterance(text);
   u.lang = lang; u.rate=1.0; u.pitch=1.0; u.volume=1.0;
   window.speechSynthesis.cancel();
@@ -82,9 +88,9 @@ async function sendMessage(ev){
     });
     const data = await res.json();
     removeTyping();
-    const reply = data.reply || '(no reply)';
+    const reply = data.reply || '(응답이 없습니다)';
     appendMessage('you', reply);
-    speak(reply, 'fr-FR');
+    speak(reply);
   } catch(e) {
     console.error(e);
     removeTyping();
