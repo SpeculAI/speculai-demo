@@ -20,7 +20,13 @@ export default async function handler(req, res) {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     const messages = [
-      { role: "system", content: "You are a kind, concise French tutor for kids. Keep answers short, spoken-friendly, and safe." },
+      {
+        role: "system",
+        content:
+          "You are a kind, concise kid-friendly tutor. " +
+          "Respond in PLAIN TEXT only (no Markdown, no asterisks, no emojis). " + // ★ 마크다운 금지
+          "Keep sentences short, spoken-friendly, safe."
+      },
       ...history,
       { role: "user", content: message }
     ];
@@ -32,7 +38,13 @@ export default async function handler(req, res) {
       max_tokens: 300
     });
 
-    const reply = completion.choices?.[0]?.message?.content ?? "Sorry, I had trouble generating a response.";
+    // 후처리: 혹시 남은 마크다운/기호 제거
+    const raw = completion.choices?.[0]?.message?.content ?? "";
+    const reply = raw
+      .replace(/\*\*/g, "")
+      .replace(/[`*_~]/g, "")
+      .trim();
+
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     return res.status(200).json({ reply });
