@@ -1,0 +1,9 @@
+{
+  "name": "speculai-demo-api",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "openai": "^4.58.0"
+  }
+}
