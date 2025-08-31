@@ -6,31 +6,41 @@
 <title>Specul.ai French Tutor</title>
 <meta name="robots" content="noindex" />
 <style>
-  :root{--bg:#f7f8fb;--card:#fff;--ink:#111;--muted:#6b7280;--primary:#2563eb}
-  *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:system-ui,sans-serif;color:var(--ink)}
-  .wrap{max-width:780px;margin:32px auto;padding:0 16px}
+  :root{--bg:#f7f8fb;--card:#fff;--ink:#111;--muted:#6b7280;--primary:#2563eb;--accent:#0ea5e9}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:system-ui,Segoe UI,Roboto,Apple Color Emoji,Noto Color Emoji,sans-serif;color:var(--ink)}
+  .wrap{max-width:820px;margin:32px auto;padding:0 16px}
   .chat{background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.06);overflow:hidden}
-  .head{padding:16px 20px;border-bottom:1px solid #eef0f3;font-weight:600}
+  .head{padding:16px 20px;border-bottom:1px solid #eef0f3;font-weight:700}
   .toolbar{display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:10px 20px;border-bottom:1px solid #eef0f3;background:#fafafa}
   .sel{border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px;background:#fff}
   .iconbtn{border:1px solid #e5e7eb;border-radius:10px;padding:8px 12px;background:#fff;cursor:pointer}
-  .msgs{padding:20px;display:flex;flex-direction:column;gap:12px;max-height:60vh;overflow:auto}
+  .msgs{padding:20px;display:flex;flex-direction:column;gap:14px;max-height:64vh;overflow:auto}
   .row{display:flex;gap:10px;align-items:flex-start}
   .row.you{justify-content:flex-start}.row.me{justify-content:flex-end}
-  .bubble{max-width:74%;padding:12px 14px;border-radius:14px;line-height:1.35}
+  .bubble{max-width:78%;padding:14px;border-radius:14px;line-height:1.5}
   .you .bubble{background:#eef2ff;color:#1f2937;border-top-left-radius:6px}
-  .me .bubble{background:#e0ecff;color:#0b3b8d;border-top-right-radius:6px}
+  .me  .bubble{background:#e0ecff;color:#0b3b8d;border-top-right-radius:6px}
   .avatar{width:28px;height:28px;border-radius:50%;background:#e5e7eb;flex:0 0 28px;display:flex;align-items:center;justify-content:center;font-size:12px}
   .foot{display:flex;gap:10px;padding:14px;border-top:1px solid #eef0f3;background:#fafafa}
   .in{flex:1;padding:12px 14px;border:1px solid #e5e7eb;border-radius:12px}
   .btn{padding:12px 16px;background:var(--primary);color:#fff;border:0;border-radius:12px;font-weight:600;cursor:pointer}
-  footer{margin-top:16px;font-size:12px;color:#6b7280;text-align:center}
+  footer{margin-top:16px;font-size:12px;color:var(--muted);text-align:center}
+
+  /* tutor response formatting */
+  .section{margin:6px 0 10px;font-weight:700}
+  .frline{display:flex;align-items:center;gap:10px;margin:6px 0 6px}
+  .fr{font-weight:600}
+  .ko{color:#374151}
+  .speak{border:1px solid var(--accent);color:#0369a1;background:#e0f2fe;border-radius:10px;padding:6px 10px;cursor:pointer;font-weight:600}
+  .road{border-top:1px dashed #e5e7eb;margin-top:10px;padding-top:8px;color:#475569;font-size:14px}
+  .kbd{display:inline-block;border:1px solid #e5e7eb;border-bottom-width:2px;border-radius:6px;padding:2px 6px;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;background:#f8fafc}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="chat">
     <div class="head">Specul.ai Tutor — French AI</div>
+
     <div class="toolbar">
       <label for="lang">입력 언어</label>
       <select id="lang" class="sel">
@@ -38,9 +48,11 @@
         <option value="en-US">English</option>
         <option value="fr-FR">Français</option>
       </select>
-      <button id="micBtn" type="button" class="iconbtn">🎤 Mic</button>
+      <button id="micBtn" type="button" class="iconbtn" title="음성 입력 시작/중지">🎤 Mic</button>
     </div>
+
     <div id="msgs" class="msgs"></div>
+
     <form class="foot" onsubmit="sendMessage(event)">
       <input id="input" class="in" placeholder="메시지를 입력하거나 마이크 버튼을 누르세요…" autocomplete="off">
       <button class="btn" type="submit">Send</button>
@@ -53,67 +65,135 @@
 const API_BASE = "https://speculai-demo.vercel.app"; // Vercel API
 
 function el(t,c,h){const e=document.createElement(t);if(c)e.className=c;if(h)e.innerHTML=h;return e;}
-function appendMessage(role,text){
-  const row=el('div','row '+(role==='me'?'me':'you'));
+function appendMessage(role, nodeOrText){
+  const row = el('div','row '+(role==='me'?'me':'you'));
   if(role==='you') row.appendChild(el('div','avatar','AI'));
-  const b=el('div','bubble'); b.textContent=text; row.appendChild(b);
-  const m=document.getElementById('msgs'); m.appendChild(row); m.scrollTop=m.scrollHeight;
+  const b = el('div','bubble');
+  if (typeof nodeOrText === 'string') b.textContent = nodeOrText; else b.appendChild(nodeOrText);
+  row.appendChild(b); const m=document.getElementById('msgs'); m.appendChild(row); m.scrollTop=m.scrollHeight;
 }
 function appendTyping(){window._typing=el('div','row you');_typing.appendChild(el('div','avatar','AI'));_typing.appendChild(el('div','bubble','…typing'));document.getElementById('msgs').appendChild(_typing);}
 function removeTyping(){ if(window._typing){ _typing.remove(); window._typing=null; } }
 
-// --- 언어 판별 ---
-function hasHangul(s){return /[가-힣]/.test(s);}
-function looksFrench(s){return /[àâçéèêëîïôûùüÿœæç]|bonjour|merci|franç|ça|comment/i.test(s);}
-function decideLang(token){if(hasHangul(token))return'ko-KR';if(looksFrench(token))return'fr-FR';if(/[A-Za-z]/.test(token))return'en-US';return null;}
-
-// --- 혼합 문장 분할 ---
-function splitMixedByLang(text){
-  const tokens=text.match(/([\uAC00-\uD7A3]+|[A-Za-zÀ-ÖØ-öø-ÿ'’\-]+|[0-9]+|[^\sA-Za-zÀ-ÖØ-öø-ÿ\uAC00-\uD7A3]+)/g)||[text];
-  const segs=[];let cur={lang:null,text:''};
-  for(const tk of tokens){const lang=decideLang(tk);
-    if(!lang){cur.text+=tk;continue;}
-    if(!cur.lang){cur.lang=lang;cur.text+=tk;continue;}
-    if(cur.lang===lang){cur.text+=tk;continue;}
-    segs.push(cur);cur={lang,text:tk};
-  } if(cur.text)segs.push(cur);
-  return segs.map(s=>({lang:s.lang,text:s.text.trim()})).filter(s=>s.text);
-}
-
-// --- 오디오 순차 재생 ---
-async function playAudioChain(b64s){if(!b64s.length)return;const a=new Audio(`data:audio/mpeg;base64,${b64s[0]}`);a.addEventListener('ended',()=>playAudioChain(b64s.slice(1)));try{await a.play();}catch{}}
-
-// --- ElevenLabs TTS 호출 ---
-async function playWithElevenLabs(text){
-  const segs=splitMixedByLang(text);try{
-    const calls=segs.map(async s=>{
-      const r=await fetch(`${API_BASE}/api/tts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(s)});
-      const j=await r.json();return j&&j.audio?j.audio:null;});
-    const results=(await Promise.all(calls)).filter(Boolean);
-    if(results.length) await playAudioChain(results);
-  }catch(e){console.warn("TTS error",e);}
-}
-
-// --- STT (HTTPS 필요) ---
-let recognition,recognizing=false;
+// ---- 마이크(STT) : HTTPS 필요 ----
+let recognition, recognizing=false;
 function initSTT(lang){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return null;const r=new SR();r.lang=lang;r.interimResults=false;r.maxAlternatives=1;r.onresult=e=>{document.getElementById('input').value=e.results[0][0].transcript;};r.onend=()=>{recognizing=false;updateMicBtn();};return r;}
 function toggleMic(){const lang=document.getElementById('lang').value;if(!recognition)recognition=initSTT(lang);if(!recognition)return;if(recognizing){recognition.stop();recognizing=false;}else{recognition.lang=lang;recognition.start();recognizing=true;}updateMicBtn();}
 function updateMicBtn(){document.getElementById('micBtn').textContent=recognizing?'🛑 Stop':'🎤 Mic';}
 document.getElementById('micBtn').onclick=toggleMic;
 
-// --- GPT 호출 ---
-async function sendMessage(ev){
-  ev.preventDefault();const i=document.getElementById('input');const text=i.value.trim();if(!text)return;
-  appendMessage('me',text);i.value='';appendTyping();
-  try{const r=await fetch(`${API_BASE}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
-    const data=await r.json();removeTyping();const reply=data.reply||'(응답이 없습니다)';appendMessage('you',reply);playWithElevenLabs(reply);
-  }catch(e){console.error(e);removeTyping();appendMessage('you','(Network error)');}
+// ---- ElevenLabs TTS: 프랑스어 문장만 클릭해서 재생 ----
+async function speakFR(text){
+  try{
+    const r = await fetch(`${API_BASE}/api/tts`, {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ text, lang: "fr-FR" })
+    });
+    const { audio } = await r.json();
+    if (!audio) return;
+    const a = new Audio(`data:audio/mpeg;base64,${audio}`);
+    await a.play().catch(()=>{});
+  }catch(e){ console.warn("TTS error", e); }
 }
 
-// --- 초기 웰컴 메시지 ---
-window.addEventListener('load',()=>{
-  const welcome="안녕하세요, Specul.ai 프랑스어 튜터입니다 🇫🇷 오늘은 어떤 주제나 표현을 배우고 싶으세요? (여행, 문화, 문법, 단어 등 자유롭게 말씀해 주세요)";
-  appendMessage('you',welcome);playWithElevenLabs(welcome);
+// ---- 튜터 응답 포매팅 렌더러 ----
+// 기대 포맷(백엔드 프롬프트로 강제):
+// 1) 한글 안내 1-2문장
+// 2) "표현" 섹션 (줄마다 "FR: ..., KO: ..." 형태, 최대 3~5개)
+// 3) "연습" 한 줄
+// 4) "다음 수업" 한 줄
+function renderTutor(text){
+  const root = el('div');
+  const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+
+  // 섹션을 단순 탐지
+  let mode = 'desc';
+  const desc = [];
+  const expr = [];
+  const practice = [];
+  const roadmap = [];
+
+  for (const line of lines){
+    const lower = line.toLowerCase();
+    if (lower.startsWith('표현') || lower.startsWith('expressions') || lower.startsWith('phrases')) { mode='expr'; continue; }
+    if (lower.startsWith('연습') || lower.startsWith('practice')) { mode='prac'; continue; }
+    if (lower.startsWith('다음 수업') || lower.startsWith('next lesson')) { mode='road'; continue; }
+    if (mode==='desc') desc.push(line);
+    else if (mode==='expr') expr.push(line);
+    else if (mode==='prac') practice.push(line);
+    else if (mode==='road') roadmap.push(line);
+  }
+
+  // 1) 설명
+  if (desc.length){
+    const p = el('div'); p.style.margin="4px 0 10px"; p.textContent = desc.join(' ');
+    root.appendChild(p);
+  }
+
+  // 2) 표현 목록 (FR/KO 분리 + [듣기] 버튼)
+  if (expr.length){
+    root.appendChild(el('div','section','표현'));
+    expr.forEach(line=>{
+      // 기대: "FR: Bonjour. KO: 안녕하세요."
+      const m = line.match(/FR:\s*(.+?)(?:\s*KO:|$)/i);
+      const mko= line.match(/KO:\s*(.+)$/i);
+      const fr = m ? m[1].trim() : line;
+      const ko = mko? mko[1].trim(): '';
+      const row = el('div','frline');
+      const frSpan = el('span','fr',fr);
+      const btn = el('button','speak','듣기'); // "발음 듣기", "원어민 듣기" 등으로 바꾸셔도 됩니다.
+      btn.type='button'; btn.onclick=()=>speakFR(fr);
+      const koSpan = el('span','ko', ko ? '— ' + ko : '');
+      row.appendChild(frSpan); row.appendChild(btn); row.appendChild(koSpan);
+      root.appendChild(row);
+    });
+  }
+
+  // 3) 연습
+  if (practice.length){
+    root.appendChild(el('div','section','연습'));
+    const p = el('div'); p.textContent = practice.join(' ');
+    root.appendChild(p);
+  }
+
+  // 4) 로드맵
+  if (roadmap.length){
+    const r = el('div','road', '다음 수업: ' + roadmap.join(' '));
+    root.appendChild(r);
+  }
+
+  return root;
+}
+
+// ---- GPT 호출 ----
+async function sendMessage(ev){
+  ev.preventDefault();
+  const i=document.getElementById('input');
+  const text=i.value.trim();
+  if(!text) return;
+  appendMessage('me', text);
+  i.value=''; appendTyping();
+
+  try{
+    const r = await fetch(`${API_BASE}/api/chat`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message: text })
+    });
+    const data = await r.json();
+    removeTyping();
+    const reply = data.reply || '(응답이 없습니다)';
+    appendMessage('you', renderTutor(reply)); // 포매팅 적용
+  }catch(e){
+    console.error(e);
+    removeTyping();
+    appendMessage('you','(Network error)');
+  }
+}
+
+// ---- 초기 웰컴(음성 없음) ----
+window.addEventListener('load', ()=>{
+  const welcome = "안녕하세요, Specul.ai 프랑스어 튜터입니다. 😊 오늘은 어떤 주제나 표현을 배우고 싶으세요? (여행, 문화, 문법, 단어 등 자유롭게 말씀해 주세요)";
+  appendMessage('you', welcome);
 });
 </script>
 </body>
