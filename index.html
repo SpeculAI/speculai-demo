@@ -18,13 +18,9 @@
   .you .bubble{background:#eef2ff;color:#1f2937;border-top-left-radius:6px}
   .me .bubble{background:#e0ecff;color:#0b3b8d;border-top-right-radius:6px}
   .avatar{width:28px;height:28px;border-radius:50%;background:#e5e7eb;flex:0 0 28px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#555}
-  .audio-card{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center}
-  .audio-cover{width:52px;height:52px;border-radius:8px;background:#35284f;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
-  .meta{font-size:12px;color:var(--muted)}
   .foot{display:flex;gap:10px;padding:14px;border-top:1px solid #eef0f3;background:#fafafa}
   .in{flex:1;padding:12px 14px;border:1px solid #e5e7eb;border-radius:12px;outline:none}
   .btn{padding:12px 16px;background:var(--primary);color:#fff;border:0;border-radius:12px;font-weight:600;cursor:pointer}
-  .note{margin:12px auto 0;color:var(--muted);font-size:12px;text-align:center}
   footer{margin-top:16px;font-size:12px;color:var(--muted);text-align:center}
 </style>
 </head>
@@ -32,43 +28,19 @@
 <div class="wrap">
   <div class="chat" role="application" aria-label="French AI Tutor demo">
     <div class="head">French AI Tutor — Context Aware</div>
-    <div id="msgs" class="msgs">
-      <div class="row you">
-        <div class="avatar" aria-hidden="true">AI</div>
-        <div class="bubble">Let’s talk about Françoise Hardy. What are some of your favourite songs by her?</div>
-      </div>
-      <div class="row me">
-        <div class="bubble">I love “Tous les garçons et les filles” and “Comment te dire adieu”.</div>
-      </div>
-      <div class="row you">
-        <div class="avatar" aria-hidden="true">AI</div>
-        <div class="bubble">Excellent! Let’s listen to the song, then use it for French conversation.</div>
-      </div>
-      <div class="row you">
-        <div class="avatar" aria-hidden="true">AI</div>
-        <div class="bubble" style="padding:0">
-          <div class="audio-card">
-            <div class="audio-cover" aria-hidden="true">FH</div>
-            <div style="flex:1">
-              <div style="font-weight:700;margin-bottom:4px">Tous les garçons et les filles</div>
-              <audio id="player" controls preload="none" style="width:100%">
-                <source src="" type="audio/mpeg">
-              </audio>
-              <div class="meta">0:35 / 2:27</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <div id="msgs" class="msgs"></div>
     <form class="foot" onsubmit="sendMessage(event)">
       <input id="input" class="in" placeholder="Tapez votre message…" autocomplete="off">
       <button class="btn" type="submit">Send</button>
     </form>
   </div>
-  <div class="note">Demo UI only — hook your API in <code>sendMessage()</code>.</div>
   <footer>Demo UI only. No real learner data collected.</footer>
 </div>
+
 <script>
+const API_BASE = "https://speculai-demo.vercel.app"; // Vercel API 엔드포인트
+
+// 메시지 표시 유틸
 function el(t,c,h){const e=document.createElement(t);if(c)e.className=c;if(h)e.innerHTML=h;return e;}
 function appendMessage(role,text){
   const row=el('div','row '+(role==='me'?'me':'you'));
@@ -82,15 +54,42 @@ function appendTyping(){
   _typing.appendChild(el('div','bubble','…typing'));
   const m=document.getElementById('msgs'); m.appendChild(_typing); m.scrollTop=m.scrollHeight;
 }
-function removeTyping(){ if(window._typing){ _typing.remove(); _typing=null; } }
-function replyStub(q){
-  return `Great! Let’s use that to practice. Repeat: « Je les aime bien. »\nThen tell me: Pourquoi aimes-tu cette chanson ?`;
+function removeTyping(){ if(window._typing){ _typing.remove(); window._typing=null; } }
+
+// TTS (브라우저 지원 시)
+function speak(text, lang='fr-FR') {
+  if (!('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang; u.rate=1.0; u.pitch=1.0; u.volume=1.0;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(u);
 }
-function sendMessage(ev){
+
+// GPT 호출
+async function sendMessage(ev){
   ev.preventDefault();
-  const i=document.getElementById('input'); const text=i.value.trim(); if(!text) return;
-  appendMessage('me',text); i.value=''; i.focus(); appendTyping();
-  setTimeout(()=>{ removeTyping(); appendMessage('you',replyStub(text)); },700);
+  const i=document.getElementById('input');
+  const text=i.value.trim();
+  if(!text) return;
+  appendMessage('me', text);
+  i.value=''; i.focus(); appendTyping();
+
+  try {
+    const res = await fetch(`${API_BASE}/api/chat`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ message: text })
+    });
+    const data = await res.json();
+    removeTyping();
+    const reply = data.reply || '(no reply)';
+    appendMessage('you', reply);
+    speak(reply, 'fr-FR');
+  } catch(e) {
+    console.error(e);
+    removeTyping();
+    appendMessage('you','(Network error)');
+  }
 }
 </script>
 </body>
